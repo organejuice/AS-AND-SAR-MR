@@ -1,0 +1,104 @@
+install.packages("remotes") remotes::install_github(MRCIEU/TwoSampleMR)
+library("TwoSampleMR")
+#install the package
+exposure_online=extract_instruments(outcomes="GWAS ID",opengwas_jwt="your key")
+outcome_online=extract_outcome_data(snps=exposure_online$SNP,outcomes="GWAS ID",opengwas_jwt="your key")
+#get the data from the IEU
+
+dat1=harmonise_data(exposure_dat=exposure_online,outcome_dat=outcome_online)
+#Combine and delete palindromes
+
+set.seed(1234)   #use it if you need to use "presso" again
+
+nbd=nrow(dat1)/0.05+1
+
+presso=run_mr_presso(dat1,NbDistribution=nbd)
+#Heterogeneity analysis and outlier sample screening
+
+write.csv(dat1,"dat1.csv")
+dat1=read.csv("dat1.csv")
+dat1=dat1[,-1]
+#reload data if you delete the outlier sample
+
+c=c("mr_weighted_mode","mr_ivw","mr_egger_regression","mr_weighted_median")
+set.seed(1234)   #use it if you need to try again
+
+a_b=generate_odds_ratios(mr_res=mr(dat1,method_list = c))
+#major analysis
+
+set_theme <- function(p) {
+  p <- p + theme(
+    plot.title = element_text(
+      family = "Arial", 
+      face = "bold", 
+      size = 12,
+      margin = margin(b = 10)),
+    axis.title = element_text(
+      family = "Arial", 
+      size = 10
+    ),
+    axis.text = element_text(
+      family = "Arial", 
+      size = 10
+    ),
+    legend.title = element_text(
+      family = "Arial", 
+      size = 8
+    ),
+    legend.text = element_text(
+      family = "Arial", 
+      size = 8
+    )
+  )
+  return(p)
+}
+p1_modified <- lapply(p1, set_theme)
+#set the text format of the picture
+
+a=subset(a_b,pval<0.05)
+#Positive result
+
+mr_results <- a_b
+p1=mr_scatter_plot(mr_results = mr_results, dat = dat1)
+#Generate a scatter plot
+
+p2=mr_forest_plot(mr_singlesnp(dat1))
+#Generated forest plot
+
+library(ggpubr)
+ggarrange(
+ p1[["ukb-b-11971.ukb-b-4711"]], 
+ p1[["ukb-b-8778.ebi-a-GCST006097"]], 
+ p1[["ukb-b-8778.ukb-b-4711"]], 
+ p2[["ebi-a-GCST90007526.ukb-b-8778"]], 
+ p2[["ukb-b-4711.ukb-b-11971"]], 
+ p2[["ukb-b-4711.ukb-b-8778"]], 
+ ncol = 3, 
+ nrow = 2, 
+ labels = c("A", "B", "C", "D", "E", "F"),hjust = -2,
+ font.label = list(size = 18, family = "TimesNewRoman"),
+ widths = c(0.5,0.5))
+#combine the plots
+
+beta=dat1$beta.exposure
+eaf=dat1$eaf.exposure
+se=dat1$se.exposure
+n=dat1$samplesize.exposure
+F=r2*(n-2)/(1-r2)
+#calculate the F
+
+dir=directionality_test(dat1)
+#Directivity analysis
+
+ple=mr_pleiotropy_test(dat1)
+#pleiotropy analysis
+
+heter=mr_heterogeneity(dat1)
+#Heterogeneity analysis
+
+p3=mr_funnel_plot(singlesnp_results = mr_singlesnp(dat1))
+#Generating funnel plot
+
+loo=mr_leaveoneout(dat1)
+p4=mr_leaveoneout_plot(mr_leaveoneout(dat1))
+#Leave one analysis to analyze robustness
