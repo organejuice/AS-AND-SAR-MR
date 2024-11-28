@@ -84,6 +84,7 @@ beta=dat1$beta.exposure
 eaf=dat1$eaf.exposure
 se=dat1$se.exposure
 n=dat1$samplesize.exposure
+r2=(2*beta^2*eaf*(1-eaf))/(2*beta^2*eaf*(1-eaf)+2*se^2*n*eaf*(1-eaf))
 F=r2*(n-2)/(1-r2)
 #calculate the F
 
